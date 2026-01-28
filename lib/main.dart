@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(const FlipClockApp());
@@ -48,10 +49,11 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
   bool _playSounds = false;
   bool _showAnimation = true;
   bool _showSeconds = true;
+  bool _showDate = true;
 
   // Date Settings
   Color _dateColor = Colors.white54;
-  String _dateFont = 'Roboto'; // Default fallback
+  String _dateFont = 'Press Start 2P'; // Default font
   String _datePattern = 'EEEE, MMMM d, yyyy'; // Default pattern
 
   // Available Fonts for Selection
@@ -71,11 +73,40 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
   @override
   void initState() {
     super.initState();
+    _loadSettings();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       setState(() {
         _currentTime = DateTime.now();
       });
     });
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _is24Hour = prefs.getBool('is24Hour') ?? false;
+      _backgroundColor = Color(prefs.getInt('backgroundColor') ?? 0xFF0A0E27);
+      _digitBackgroundColor = Color(prefs.getInt('digitBackgroundColor') ?? 0xFF2a2e45);
+      _digitTextColor = Color(prefs.getInt('digitTextColor') ?? Colors.white.value);
+      _playSounds = prefs.getBool('playSounds') ?? false;
+      _showAnimation = prefs.getBool('showAnimation') ?? true;
+      _showSeconds = prefs.getBool('showSeconds') ?? true;
+      _showDate = prefs.getBool('showDate') ?? true;
+      _dateColor = Color(prefs.getInt('dateColor') ?? Colors.white54.value);
+      _dateFont = prefs.getString('dateFont') ?? 'Press Start 2P';
+      _datePattern = prefs.getString('datePattern') ?? 'EEEE, MMMM d, yyyy';
+    });
+  }
+
+  Future<void> _saveSetting(String key, dynamic value) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (value is bool) {
+      prefs.setBool(key, value);
+    } else if (value is int) {
+      prefs.setInt(key, value);
+    } else if (value is String) {
+      prefs.setString(key, value);
+    }
   }
 
   @override
@@ -128,6 +159,9 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
               child: const Text('Got it'),
               onPressed: () {
                 setState(() => onColorChanged(tempColor));
+                // We'll handle saving the specific color key in the caller if needed
+                // or just pass a more specific callback. 
+                // For simplicity, color changes in pickers happen here.
                 Navigator.of(context).pop();
               },
             ),
@@ -154,13 +188,22 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Settings',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Settings',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close, color: Colors.white70),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 20),
                 
@@ -171,6 +214,7 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
                       value: _is24Hour,
                       onChanged: (value) {
                         setState(() => _is24Hour = value);
+                        _saveSetting('is24Hour', value);
                         setSheetState(() {});
                       },
                       secondary: const Icon(Icons.access_time, color: Colors.white),
@@ -181,9 +225,21 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
                       value: _showSeconds,
                       onChanged: (value) {
                         setState(() => _showSeconds = value);
+                        _saveSetting('showSeconds', value);
                         setSheetState(() {});
                       },
                       secondary: const Icon(Icons.timer, color: Colors.white),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    SwitchListTile(
+                      title: const Text('Show Date', style: TextStyle(color: Colors.white)),
+                      value: _showDate,
+                      onChanged: (value) {
+                        setState(() => _showDate = value);
+                        _saveSetting('showDate', value);
+                        setSheetState(() {});
+                      },
+                      secondary: const Icon(Icons.calendar_today, color: Colors.white),
                       contentPadding: EdgeInsets.zero,
                     ),
                     SwitchListTile(
@@ -191,6 +247,7 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
                       value: _showAnimation,
                       onChanged: (value) {
                         setState(() => _showAnimation = value);
+                        _saveSetting('showAnimation', value);
                         setSheetState(() {});
                       },
                       secondary: const Icon(Icons.animation, color: Colors.white),
@@ -201,6 +258,7 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
                       value: _playSounds,
                       onChanged: (value) {
                         setState(() => _playSounds = value);
+                        _saveSetting('playSounds', value);
                         setSheetState(() {});
                       },
                       secondary: const Icon(Icons.volume_up, color: Colors.white),
@@ -218,6 +276,7 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
                       trailing: CircleAvatar(backgroundColor: _backgroundColor),
                       onTap: () => _pickColor(context, 'Pick Background Color', _backgroundColor, (c) {
                         _backgroundColor = c;
+                        _saveSetting('backgroundColor', c.value);
                         setSheetState(() {});
                       }),
                       contentPadding: EdgeInsets.zero,
@@ -227,6 +286,7 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
                       trailing: CircleAvatar(backgroundColor: _digitBackgroundColor),
                       onTap: () => _pickColor(context, 'Pick Digit Background', _digitBackgroundColor, (c) {
                         _digitBackgroundColor = c;
+                        _saveSetting('digitBackgroundColor', c.value);
                         setSheetState(() {});
                       }),
                       contentPadding: EdgeInsets.zero,
@@ -236,6 +296,7 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
                       trailing: CircleAvatar(backgroundColor: _digitTextColor),
                       onTap: () => _pickColor(context, 'Pick Digit Text Color', _digitTextColor, (c) {
                         _digitTextColor = c;
+                        _saveSetting('digitTextColor', c.value);
                         setSheetState(() {});
                       }),
                       contentPadding: EdgeInsets.zero,
@@ -250,6 +311,7 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
                       trailing: CircleAvatar(backgroundColor: _dateColor),
                       onTap: () => _pickColor(context, 'Pick Date Color', _dateColor, (c) {
                         _dateColor = c;
+                        _saveSetting('dateColor', c.value);
                         setSheetState(() {});
                       }),
                       contentPadding: EdgeInsets.zero,
@@ -282,6 +344,7 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
                         onChanged: (String? newValue) {
                           if (newValue != null) {
                             setState(() => _dateFont = newValue);
+                            _saveSetting('dateFont', newValue);
                             setSheetState(() {});
                           }
                         },
@@ -306,6 +369,7 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
                       ),
                       onChanged: (value) {
                          setState(() => _datePattern = value);
+                         _saveSetting('datePattern', value);
                          // No setSheetState needed for this text field itself, but good for preview
                       },
                     ),
@@ -395,17 +459,19 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
                 ),
               ),
               
-              const SizedBox(height: 60),
-              
-              // Date Display - ALLOWS WRAPPING, SCALES IF NEEDED
-              Flexible( // Flexible allows it to take space but shrink/wrap
-                child: Text(
-                  _formatDate(_currentTime),
-                  style: dateStyle,
-                  textAlign: TextAlign.center, // Center aligned when wrapped
-                  softWrap: true, // Allow wrapping
+              if (_showDate) ...[
+                const SizedBox(height: 60),
+                
+                // Date Display - ALLOWS WRAPPING, SCALES IF NEEDED
+                Flexible( // Flexible allows it to take space but shrink/wrap
+                  child: Text(
+                    _formatDate(_currentTime),
+                    style: dateStyle,
+                    textAlign: TextAlign.center, // Center aligned when wrapped
+                    softWrap: true, // Allow wrapping
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -444,12 +510,6 @@ class FlipDigitGroup extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         FlipDigit(
-          key: ValueKey('1-${value[0]}'), // Key helps but might be better based on position not value for stable identity? Actually ValueKey helps identifying change.
-          // Wait. If key is '1-1' and becomes '1-2', it's a NEW widget. State is lost. Animation won't run.
-          // Correct way for implicit animation: Key should be STABLE (e.g. 'hour-tens').
-          // BUT `FlipDigit` logic relies on `didUpdateWidget` to detect change.
-          // So Key must be STABLE.
-          // Let's remove keys or use positional keys.
           digit: value[0],
           backgroundColor: backgroundColor,
           textColor: textColor,
@@ -549,72 +609,61 @@ class _FlipDigitState extends State<FlipDigit> with SingleTickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
-    // If disabled animation, just show the next digit
-    if (!widget.animate) {
-       return _buildStaticDigit(_nextDigit);
-    }
-
-    if (!_controller.isAnimating) {
+    if (!widget.animate || (!_controller.isAnimating && _currentDigit == _nextDigit)) {
       return _buildStaticDigit(_currentDigit);
     }
 
-    return Stack(
-      children: [
-        // 1. Static Background: Top Half of NEXT, Bottom Half of CURRENT
-        // This simulates the "underneath" state. 
-        // When Top Current Flips down, it reveals Top Next.
-        // When Bottom Next Lands, it covers Bottom Current.
-        Column(
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        final double angle = _animation.value * math.pi;
+        final bool isTopHalf = angle < math.pi / 2;
+
+        return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-             _buildHalfDigit(digit: _nextDigit, isTop: true, isFront: false),
-             _buildHalfDigit(digit: _currentDigit, isTop: false, isFront: false),
+            // Top Half Area
+            Stack(
+              alignment: Alignment.bottomCenter,
+              children: [
+                _buildHalfDigit(digit: _nextDigit, isTop: true),
+                if (isTopHalf)
+                  Transform(
+                    alignment: Alignment.bottomCenter,
+                    transform: Matrix4.identity()
+                      ..setEntry(3, 2, 0.003)
+                      ..rotateX(-angle),
+                    child: _buildHalfDigit(
+                      digit: _currentDigit,
+                      isTop: true,
+                      isAnimated: true,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 2), // The Hinge Gap
+            // Bottom Half Area
+            Stack(
+              alignment: Alignment.topCenter,
+              children: [
+                _buildHalfDigit(digit: _currentDigit, isTop: false),
+                if (!isTopHalf)
+                  Transform(
+                    alignment: Alignment.topCenter,
+                    transform: Matrix4.identity()
+                      ..setEntry(3, 2, 0.003)
+                      ..rotateX(math.pi - angle),
+                    child: _buildHalfDigit(
+                      digit: _nextDigit,
+                      isTop: false,
+                      isAnimated: true,
+                    ),
+                  ),
+              ],
+            ),
           ],
-        ),
-
-        // 2. Animated Flap
-        AnimatedBuilder(
-          animation: _animation,
-          builder: (context, child) {
-             // 0.0 -> 1.0 corresponds to 0 -> 180 degrees (pi)
-             final double angle = _animation.value * math.pi;
-             bool isTopHalf = angle < math.pi / 2;
-             
-             if (isTopHalf) {
-                // First Phase: Top half of CURRENT digit flipping down (Front Flip)
-                // Angle 0 -> 90 (displayed as 0 -> -90 rotation to come towards viewer)
-                return Transform(
-                   alignment: Alignment.bottomCenter,
-                   transform: Matrix4.identity()
-                     ..setEntry(3, 2, 0.006) // Perspective
-                     ..rotateX(-angle), // Rotate down (towards viewer)
-                   child: _buildHalfDigit(
-                     digit: _currentDigit,
-                     isTop: true,
-                     isFront: true,
-                   ),
-                );
-             } else {
-                // Second Phase: Bottom half of NEXT digit finishing the flip
-                // Angle 90 -> 180.
-                // We want Rotation to go +90 (sticking out front) -> 0 (flat down).
-                // At angle = pi/2 -> pi - pi/2 = +pi/2 (+90).
-                // At angle = pi   -> pi - pi   = 0.
-                return Transform(
-                   alignment: Alignment.topCenter,
-                   transform: Matrix4.identity()
-                     ..setEntry(3, 2, 0.006)
-                     ..rotateX(math.pi - angle), // +90 -> 0 (Front to Flat)
-                   child: _buildHalfDigit(
-                     digit: _nextDigit,
-                     isTop: false,
-                     isFront: true,
-                   ),
-                );
-             }
-          }
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -622,8 +671,9 @@ class _FlipDigitState extends State<FlipDigit> with SingleTickerProviderStateMix
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _buildHalfDigit(digit: digit, isTop: true, isFront: false),
-        _buildHalfDigit(digit: digit, isTop: false, isFront: false),
+        _buildHalfDigit(digit: digit, isTop: true),
+        const SizedBox(height: 2), // The Hinge Gap
+        _buildHalfDigit(digit: digit, isTop: false),
       ],
     );
   }
@@ -631,7 +681,7 @@ class _FlipDigitState extends State<FlipDigit> with SingleTickerProviderStateMix
   Widget _buildHalfDigit({
     required String digit,
     required bool isTop,
-    required bool isFront,
+    bool isAnimated = false,
   }) {
     return ClipRect(
       child: Align(
@@ -639,30 +689,51 @@ class _FlipDigitState extends State<FlipDigit> with SingleTickerProviderStateMix
         heightFactor: 0.5,
         child: Container(
           width: 80,
-          height: 120, // Full height
+          height: 120,
           decoration: BoxDecoration(
             color: widget.backgroundColor,
-            borderRadius: isTop 
-                ? const BorderRadius.vertical(top: Radius.circular(8))
-                : const BorderRadius.vertical(bottom: Radius.circular(8)),
+            borderRadius: BorderRadius.circular(8),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                isTop ? widget.backgroundColor : widget.backgroundColor.withOpacity(0.85),
+                isTop ? widget.backgroundColor.withOpacity(0.85) : widget.backgroundColor,
+              ],
+            ),
             boxShadow: [
                BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
+                  color: Colors.black.withOpacity(0.4),
+                  blurRadius: isAnimated ? 4 : 8,
+                  offset: isAnimated ? const Offset(0, 2) : const Offset(0, 4),
                )
             ],
           ),
-          child: Center(
-            child: Text(
-              digit,
-              style: TextStyle(
-                fontSize: 80,
-                fontWeight: FontWeight.bold,
-                color: widget.textColor,
-                height: 1.0,
+          child: Stack(
+            children: [
+              Center(
+                child: Text(
+                  digit,
+                  style: TextStyle(
+                    fontSize: 84,
+                    fontWeight: FontWeight.bold,
+                    color: widget.textColor,
+                    height: 1.0,
+                  ),
+                ),
               ),
-            ),
+              // Subtle Inner Shadow at the hinge for depth
+              Positioned(
+                bottom: isTop ? 0 : null,
+                top: !isTop ? 0 : null,
+                left: 0,
+                right: 0,
+                child: Container(
+                  height: 1.5,
+                  color: Colors.black.withOpacity(0.5),
+                ),
+              ),
+            ],
           ),
         ),
       ),
