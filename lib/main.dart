@@ -39,6 +39,11 @@ class FlipClockScreen extends StatefulWidget {
 class _FlipClockScreenState extends State<FlipClockScreen> {
   late Timer _timer;
   DateTime _currentTime = DateTime.now();
+  
+  // Settings button visibility
+  bool _showSettingsButton = true;
+  double _settingsButtonOpacity = 1.0;
+  Timer? _settingsButtonTimer;
 
   // Settings State
   bool _is24Hour = false;
@@ -91,6 +96,9 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
         _currentTime = DateTime.now();
       });
     });
+    
+    // Hide settings button after 5 seconds initially
+    _startSettingsButtonTimer();
   }
 
   Future<void> _loadSettings() async {
@@ -241,9 +249,35 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
   @override
   void dispose() {
     _timer.cancel();
+    _settingsButtonTimer?.cancel();
     super.dispose();
   }
 
+  void _startSettingsButtonTimer() {
+    _settingsButtonTimer?.cancel();
+    setState(() {
+      _settingsButtonOpacity = 0.5;
+    });
+    
+    _settingsButtonTimer = Timer(const Duration(seconds: 5), () {
+      setState(() {
+        _showSettingsButton = false;
+      });
+    });
+  }
+  
+  void _onScreenTap() {
+    setState(() {
+      _showSettingsButton = true;
+      _settingsButtonOpacity = 1.0;
+    });
+    _startSettingsButtonTimer();
+  }
+  
+  void _onSettingsClosed() {
+    _startSettingsButtonTimer();
+  }
+  
   void _onDigitFlipped() {
     if (_playSounds) {
       // Linux-specific sound playback using aplay (ALSA)
@@ -301,6 +335,10 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
   }
 
   void _showSettings() {
+    _showSettingsBottomSheet(context);
+  }
+  
+  void _showSettingsBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
       backgroundColor: _digitBackgroundColor,
@@ -329,7 +367,10 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
                           ),
                         ),
                         IconButton(
-                          onPressed: () => Navigator.pop(context),
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _onSettingsClosed();
+                          },
                           icon: const Icon(Icons.close, color: Colors.white70),
                         ),
                       ],
@@ -628,32 +669,34 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
     ).copyWith(letterSpacing: 2);
 
     return Scaffold(
-      body: Stack(
-        children: [
-          // Background
-          if (_useBackgroundImage && _backgroundImagePath != null)
-            Positioned.fill(
-              child: Image.file(
-                File(_backgroundImagePath!),
-                fit: _backgroundImageFit == 'cover' ? BoxFit.cover : BoxFit.contain,
-              ),
-            )
-          else
-            Positioned.fill(
-              child: Container(color: _backgroundColor),
-            ),
-          
-          // Main Content
-          SafeArea(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Time Display
-                    FittedBox(
+      body: GestureDetector(
+        onTap: _onScreenTap,
+        child: Container(
+          color: _useBackgroundImage && _backgroundImagePath != null 
+            ? Colors.transparent 
+            : _backgroundColor,
+          child: Stack(
+            children: [
+              // Background image (if any)
+              if (_useBackgroundImage && _backgroundImagePath != null)
+                Positioned.fill(
+                  child: Image.file(
+                    File(_backgroundImagePath!),
+                    fit: _backgroundImageFit == 'cover' ? BoxFit.cover : BoxFit.contain,
+                  ),
+                ),
+              
+              // Main Content
+              SafeArea(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                      // Time Display
+                      FittedBox(
                       fit: BoxFit.scaleDown,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -722,13 +765,22 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
           Positioned(
             top: 20,
             right: 20,
-            child: FloatingActionButton(
-              onPressed: _showSettings,
-              backgroundColor: Colors.white.withOpacity(0.2),
-              child: const Icon(Icons.settings, color: Colors.white),
+            child: AnimatedOpacity(
+              opacity: _showSettingsButton ? _settingsButtonOpacity : 0.0,
+              duration: const Duration(milliseconds: 300),
+              child: IgnorePointer(
+                ignoring: !_showSettingsButton,
+                child: FloatingActionButton(
+                  onPressed: _showSettings,
+                  backgroundColor: Colors.white.withOpacity(0.2),
+                  child: const Icon(Icons.settings, color: Colors.white),
+                ),
+              ),
             ),
           ),
         ],
+          ),
+        ),
       ),
     );
   }
