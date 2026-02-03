@@ -6,6 +6,7 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image_picker/image_picker.dart';
 
 void main() {
   runApp(const FlipClockApp());
@@ -44,6 +45,11 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
   Color _backgroundColor = const Color(0xFF0A0E27);
   Color _digitBackgroundColor = const Color(0xFF2a2e45);
   Color _digitTextColor = Colors.white;
+  
+  // Background Image Settings
+  bool _useBackgroundImage = false;
+  String? _backgroundImagePath;
+  String _backgroundImageFit = 'cover'; // 'cover' or 'contain'
 
   // New Options
   bool _playSounds = false;
@@ -55,6 +61,12 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
   Color _dateColor = Colors.white54;
   String _dateFont = 'Press Start 2P'; // Default font
   String _datePattern = 'EEEE, MMMM d, yyyy'; // Default pattern
+  double _dateFontSize = 18.0; // Default font size
+  
+  // Colon Settings
+  Color _colonColor = Colors.white;
+  String _digitFont = 'Roboto'; // Default font for digits
+  double _digitFontSize = 84.0; // Default font size for digits
 
   // Available Fonts for Selection
   final List<String> _availableFonts = [
@@ -88,6 +100,9 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
       _backgroundColor = Color(prefs.getInt('backgroundColor') ?? 0xFF0A0E27);
       _digitBackgroundColor = Color(prefs.getInt('digitBackgroundColor') ?? 0xFF2a2e45);
       _digitTextColor = Color(prefs.getInt('digitTextColor') ?? Colors.white.value);
+      _useBackgroundImage = prefs.getBool('useBackgroundImage') ?? false;
+      _backgroundImagePath = prefs.getString('backgroundImagePath');
+      _backgroundImageFit = prefs.getString('backgroundImageFit') ?? 'cover';
       _playSounds = prefs.getBool('playSounds') ?? false;
       _showAnimation = prefs.getBool('showAnimation') ?? true;
       _showSeconds = prefs.getBool('showSeconds') ?? true;
@@ -95,6 +110,10 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
       _dateColor = Color(prefs.getInt('dateColor') ?? Colors.white54.value);
       _dateFont = prefs.getString('dateFont') ?? 'Press Start 2P';
       _datePattern = prefs.getString('datePattern') ?? 'EEEE, MMMM d, yyyy';
+      _dateFontSize = prefs.getDouble('dateFontSize') ?? 18.0;
+      _colonColor = Color(prefs.getInt('colonColor') ?? Colors.white.value);
+      _digitFont = prefs.getString('digitFont') ?? 'Roboto';
+      _digitFontSize = prefs.getDouble('digitFontSize') ?? 84.0;
     });
   }
 
@@ -106,6 +125,116 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
       prefs.setInt(key, value);
     } else if (value is String) {
       prefs.setString(key, value);
+    } else if (value is double) {
+      prefs.setDouble(key, value);
+    }
+  }
+  
+  Future<void> _pickBackgroundImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    
+    if (pickedFile != null) {
+      setState(() {
+        _backgroundImagePath = pickedFile.path;
+        _useBackgroundImage = true;
+      });
+      _saveSetting('backgroundImagePath', pickedFile.path);
+      _saveSetting('useBackgroundImage', true);
+    }
+  }
+  
+  void _clearBackgroundImage() {
+    setState(() {
+      _backgroundImagePath = null;
+      _useBackgroundImage = false;
+    });
+    _saveSetting('backgroundImagePath', null);
+    _saveSetting('useBackgroundImage', false);
+  }
+  
+  List<Widget> _buildBackgroundWidgets(BuildContext context, StateSetter setSheetState) {
+    if (_useBackgroundImage) {
+      if (_backgroundImagePath != null) {
+        return [
+          ListTile(
+            title: const Text('Change Image', style: TextStyle(color: Colors.white)),
+            trailing: const Icon(Icons.photo_library, color: Colors.white70),
+            onTap: () {
+              _pickBackgroundImage();
+              Navigator.pop(context);
+            },
+            contentPadding: EdgeInsets.zero,
+          ),
+          ListTile(
+            title: const Text('Clear Image', style: TextStyle(color: Colors.white)),
+            trailing: const Icon(Icons.clear, color: Colors.red),
+            onTap: () {
+              _clearBackgroundImage();
+              setSheetState(() {});
+            },
+            contentPadding: EdgeInsets.zero,
+          ),
+          const Text('Image Fit', style: TextStyle(color: Colors.white)),
+          const SizedBox(height: 5),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: DropdownButton<String>(
+              value: _backgroundImageFit,
+              dropdownColor: _digitBackgroundColor,
+              isExpanded: true,
+              underline: const SizedBox(),
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              items: const [
+                DropdownMenuItem<String>(
+                  value: 'cover',
+                  child: Text('Fill Screen (Cover)'),
+                ),
+                DropdownMenuItem<String>(
+                  value: 'contain',
+                  child: Text('Show Full Image (Contain)'),
+                ),
+              ],
+              onChanged: (String? newValue) {
+                if (newValue != null) {
+                  setState(() => _backgroundImageFit = newValue);
+                  _saveSetting('backgroundImageFit', newValue);
+                  setSheetState(() {});
+                }
+              },
+            ),
+          ),
+        ];
+      } else {
+        return [
+          ListTile(
+            title: const Text('Select Image', style: TextStyle(color: Colors.white)),
+            trailing: const Icon(Icons.photo_library, color: Colors.white70),
+            onTap: () {
+              _pickBackgroundImage();
+              Navigator.pop(context);
+            },
+            contentPadding: EdgeInsets.zero,
+          ),
+        ];
+      }
+    } else {
+      return [
+        ListTile(
+          title: const Text('App Background', style: TextStyle(color: Colors.white)),
+          trailing: CircleAvatar(backgroundColor: _backgroundColor),
+          onTap: () => _pickColor(context, 'Pick Background Color', _backgroundColor, (c) {
+            _backgroundColor = c;
+            _saveSetting('backgroundColor', c.value);
+            setSheetState(() {});
+          }),
+          contentPadding: EdgeInsets.zero,
+        ),
+      ];
     }
   }
 
@@ -268,19 +397,27 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
                     const Divider(color: Colors.white24),
                 
                     // Colors Section
-                    const Text('Colors', style: TextStyle(color: Colors.white70, fontSize: 18)),
+                    const Text('Background', style: TextStyle(color: Colors.white70, fontSize: 18)),
                     const SizedBox(height: 10),
-                
-                    ListTile(
-                      title: const Text('App Background', style: TextStyle(color: Colors.white)),
-                      trailing: CircleAvatar(backgroundColor: _backgroundColor),
-                      onTap: () => _pickColor(context, 'Pick Background Color', _backgroundColor, (c) {
-                        _backgroundColor = c;
-                        _saveSetting('backgroundColor', c.value);
+                    
+                    SwitchListTile(
+                      title: const Text('Use Background Image', style: TextStyle(color: Colors.white)),
+                      value: _useBackgroundImage,
+                      onChanged: (value) {
+                        setState(() => _useBackgroundImage = value);
+                        _saveSetting('useBackgroundImage', value);
                         setSheetState(() {});
-                      }),
+                      },
+                      secondary: const Icon(Icons.image, color: Colors.white),
                       contentPadding: EdgeInsets.zero,
                     ),
+                    
+                    // Background section - build widgets programmatically
+                    ..._buildBackgroundWidgets(context, setSheetState),
+                    
+                    const Divider(color: Colors.white24),
+                    const Text('Colors', style: TextStyle(color: Colors.white70, fontSize: 18)),
+                    const SizedBox(height: 10),
                     ListTile(
                       title: const Text('Digit Background', style: TextStyle(color: Colors.white)),
                       trailing: CircleAvatar(backgroundColor: _digitBackgroundColor),
@@ -301,7 +438,74 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
                       }),
                       contentPadding: EdgeInsets.zero,
                     ),
+                    ListTile(
+                      title: const Text('Colon Dots', style: TextStyle(color: Colors.white)),
+                      trailing: CircleAvatar(backgroundColor: _colonColor),
+                      onTap: () => _pickColor(context, 'Pick Colon Dots Color', _colonColor, (c) {
+                        _colonColor = c;
+                        _saveSetting('colonColor', c.value);
+                        setSheetState(() {});
+                      }),
+                      contentPadding: EdgeInsets.zero,
+                    ),
                 
+                    const Divider(color: Colors.white24),
+                    const Text('Digit Settings', style: TextStyle(color: Colors.white70, fontSize: 18)),
+                    const SizedBox(height: 10),
+                    
+                    const Text('Digit Font', style: TextStyle(color: Colors.white)),
+                    const SizedBox(height: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: DropdownButton<String>(
+                        value: _availableFonts.contains(_digitFont) ? _digitFont : _availableFonts.first,
+                        dropdownColor: _digitBackgroundColor,
+                        isExpanded: true,
+                        underline: const SizedBox(),
+                        style: const TextStyle(color: Colors.white, fontSize: 16),
+                        items: _availableFonts.map((String font) {
+                          return DropdownMenuItem<String>(
+                            value: font,
+                            child: Text(
+                              font, 
+                              style: GoogleFonts.getFont(font),
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          if (newValue != null) {
+                            setState(() => _digitFont = newValue);
+                            _saveSetting('digitFont', newValue);
+                            setSheetState(() {});
+                          }
+                        },
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 15),
+                    const Text('Digit Font Size', style: TextStyle(color: Colors.white)),
+                    const SizedBox(height: 5),
+                    Slider(
+                      value: _digitFontSize,
+                      min: 40.0,
+                      max: 120.0,
+                      divisions: 80,
+                      label: _digitFontSize.round().toString(),
+                      activeColor: _digitTextColor,
+                      inactiveColor: Colors.white24,
+                      onChanged: (value) {
+                        setState(() => _digitFontSize = value);
+                        _saveSetting('digitFontSize', value);
+                        setSheetState(() {});
+                      },
+                    ),
+                    const SizedBox(height: 5),
+                    Text('Size: ${_digitFontSize.round()}px', style: TextStyle(color: Colors.white30, fontSize: 12)),
+                    
                     const Divider(color: Colors.white24),
                     const Text('Date Settings', style: TextStyle(color: Colors.white70, fontSize: 18)),
                     const SizedBox(height: 10),
@@ -352,6 +556,25 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
                     ),
                     
                     const SizedBox(height: 15),
+                    const Text('Date Font Size', style: TextStyle(color: Colors.white)),
+                    const SizedBox(height: 5),
+                    Slider(
+                      value: _dateFontSize,
+                      min: 10.0,
+                      max: 36.0,
+                      divisions: 26,
+                      label: _dateFontSize.round().toString(),
+                      activeColor: _digitTextColor,
+                      inactiveColor: Colors.white24,
+                      onChanged: (value) {
+                        setState(() => _dateFontSize = value);
+                        _saveSetting('dateFontSize', value);
+                        setSheetState(() {});
+                      },
+                    ),
+                    const SizedBox(height: 5),
+                    Text('Size: ${_dateFontSize.round()}px', style: TextStyle(color: Colors.white30, fontSize: 12)),
+                    const SizedBox(height: 15),
                     const Text('Date Format Pattern', style: TextStyle(color: Colors.white)),
                     const SizedBox(height: 5),
                     TextField(
@@ -399,82 +622,113 @@ class _FlipClockScreenState extends State<FlipClockScreen> {
 
     TextStyle dateStyle = GoogleFonts.getFont(
       _dateFont,
-      fontSize: 18,
+      fontSize: _dateFontSize,
       fontWeight: FontWeight.w300,
       color: _dateColor,
     ).copyWith(letterSpacing: 2);
 
     return Scaffold(
-      backgroundColor: _backgroundColor,
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showSettings,
-        backgroundColor: Colors.white.withOpacity(0.1),
-        child: const Icon(Icons.settings, color: Colors.white),
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0), // Padding to prevent edge touching
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min, // Hug content vertically
-            children: [
-              // Time Display - SCALES DOWN, NO WRAPPING
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Row(
+      body: Stack(
+        children: [
+          // Background
+          if (_useBackgroundImage && _backgroundImagePath != null)
+            Positioned.fill(
+              child: Image.file(
+                File(_backgroundImagePath!),
+                fit: _backgroundImageFit == 'cover' ? BoxFit.cover : BoxFit.contain,
+              ),
+            )
+          else
+            Positioned.fill(
+              child: Container(color: _backgroundColor),
+            ),
+          
+          // Main Content
+          SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Hours
-                    FlipDigitGroup(
-                      value: hourStr,
-                      backgroundColor: _digitBackgroundColor,
-                      textColor: _digitTextColor,
-                      animate: _showAnimation,
-                      onFlip: _onDigitFlipped,
+                    // Time Display
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Hours
+                          FlipDigitGroup(
+                            value: hourStr,
+                            backgroundColor: _digitBackgroundColor,
+                            textColor: _digitTextColor,
+                            font: _digitFont,
+                            fontSize: _digitFontSize,
+                            animate: _showAnimation,
+                            onFlip: _onDigitFlipped,
+                          ),
+                          
+                          TimeSeparator(color: _colonColor),
+                          
+                          // Minutes
+                          FlipDigitGroup(
+                            value: minuteStr,
+                            backgroundColor: _digitBackgroundColor,
+                            textColor: _digitTextColor,
+                            font: _digitFont,
+                            fontSize: _digitFontSize,
+                            animate: _showAnimation,
+                            onFlip: _onDigitFlipped,
+                          ),
+                          
+                          // Seconds (Optional)
+                          if (_showSeconds) ...[
+                            TimeSeparator(color: _colonColor),
+                            FlipDigitGroup(
+                              value: secondStr,
+                              backgroundColor: _digitBackgroundColor,
+                              textColor: _digitTextColor,
+                              font: _digitFont,
+                              fontSize: _digitFontSize,
+                              animate: _showAnimation,
+                              onFlip: _onDigitFlipped,
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                     
-                    TimeSeparator(color: _digitTextColor),
-                    
-                    // Minutes
-                    FlipDigitGroup(
-                      value: minuteStr,
-                      backgroundColor: _digitBackgroundColor,
-                      textColor: _digitTextColor,
-                      animate: _showAnimation,
-                      onFlip: _onDigitFlipped,
-                    ),
-                    
-                    // Seconds (Optional)
-                    if (_showSeconds) ...[
-                      TimeSeparator(color: _digitTextColor),
-                      FlipDigitGroup(
-                        value: secondStr,
-                        backgroundColor: _digitBackgroundColor,
-                        textColor: _digitTextColor,
-                        animate: _showAnimation,
-                        onFlip: _onDigitFlipped,
+                    if (_showDate) ...[
+                      const SizedBox(height: 60),
+                      
+                      // Date Display
+                      Flexible(
+                        child: Text(
+                          _formatDate(_currentTime),
+                          style: dateStyle,
+                          textAlign: TextAlign.center,
+                          softWrap: true,
+                        ),
                       ),
                     ],
                   ],
                 ),
               ),
-              
-              if (_showDate) ...[
-                const SizedBox(height: 60),
-                
-                // Date Display - ALLOWS WRAPPING, SCALES IF NEEDED
-                Flexible( // Flexible allows it to take space but shrink/wrap
-                  child: Text(
-                    _formatDate(_currentTime),
-                    style: dateStyle,
-                    textAlign: TextAlign.center, // Center aligned when wrapped
-                    softWrap: true, // Allow wrapping
-                  ),
-                ),
-              ],
-            ],
+            ),
           ),
-        ),
+          
+          // Settings Button
+          Positioned(
+            top: 20,
+            right: 20,
+            child: FloatingActionButton(
+              onPressed: _showSettings,
+              backgroundColor: Colors.white.withOpacity(0.2),
+              child: const Icon(Icons.settings, color: Colors.white),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -492,6 +746,8 @@ class FlipDigitGroup extends StatelessWidget {
   final String value;
   final Color backgroundColor;
   final Color textColor;
+  final String font;
+  final double fontSize;
   final bool animate;
   final VoidCallback? onFlip;
 
@@ -500,6 +756,8 @@ class FlipDigitGroup extends StatelessWidget {
     required this.value,
     required this.backgroundColor,
     required this.textColor,
+    required this.font,
+    required this.fontSize,
     required this.animate,
     this.onFlip,
   });
@@ -513,6 +771,8 @@ class FlipDigitGroup extends StatelessWidget {
           digit: value[0],
           backgroundColor: backgroundColor,
           textColor: textColor,
+          font: font,
+          fontSize: fontSize,
           animate: animate,
           onFlip: onFlip,
         ),
@@ -521,6 +781,8 @@ class FlipDigitGroup extends StatelessWidget {
           digit: value[1],
           backgroundColor: backgroundColor,
           textColor: textColor,
+          font: font,
+          fontSize: fontSize,
           animate: animate,
           onFlip: onFlip,
         ),
@@ -533,6 +795,8 @@ class FlipDigit extends StatefulWidget {
   final String digit;
   final Color backgroundColor;
   final Color textColor;
+  final String font;
+  final double fontSize;
   final bool animate;
   final VoidCallback? onFlip;
 
@@ -541,6 +805,8 @@ class FlipDigit extends StatefulWidget {
     required this.digit,
     required this.backgroundColor,
     required this.textColor,
+    required this.font,
+    required this.fontSize,
     required this.animate,
     this.onFlip,
   });
@@ -712,13 +978,22 @@ class _FlipDigitState extends State<FlipDigit> with SingleTickerProviderStateMix
           child: Stack(
             children: [
               Center(
-                child: Text(
-                  digit,
-                  style: TextStyle(
-                    fontSize: 84,
-                    fontWeight: FontWeight.bold,
-                    color: widget.textColor,
-                    height: 1.0,
+                child: SizedBox(
+                  width: 80,
+                  height: 120,
+                  child: Align(
+                    alignment: Alignment.center,
+                    child: Text(
+                      digit,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.getFont(
+                        widget.font,
+                        fontSize: widget.fontSize,
+                        fontWeight: FontWeight.bold,
+                        color: widget.textColor,
+                        height: 1.0,
+                      ),
+                    ),
                   ),
                 ),
               ),
