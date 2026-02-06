@@ -140,6 +140,6 @@ Any modifications must be shared under the same GPL v3 license, ensuring the com
 
 If you enjoy this flip clock app and want to support its continued development, consider buying me a coffee!
 
-<a href='https://ko-fi.com/R5R11TOYR8' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi5.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
+<a href='https://ko-fi.com/R5R11TOYR8' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi2.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
 
 Your support helps maintain and improve the app with new features and bug fixes.
