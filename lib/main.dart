@@ -18,7 +18,7 @@ class FlipClockApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flip Clock',
+      title: 'Flippin Klock',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,

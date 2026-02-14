@@ -1,4 +1,4 @@
-# Flip Clock
+# Flippin Klock
 
 A customizable, mechanical-style flip clock application built with Flutter. Transform any device into a beautiful, functional timepiece with extensive customization options and a premium user experience.
 
