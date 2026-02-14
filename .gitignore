@@ -41,3 +41,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Large development tools
+commandlinetools-linux-*.zip
+android-studio-*.tar.gz
