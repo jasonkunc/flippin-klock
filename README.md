@@ -85,11 +85,11 @@ A customizable, mechanical-style flip clock application built with Flutter. Tran
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/jasonkunc/flip-clock.git
+   git clone https://github.com/jasonkunc/flippin-klock.git
    ```
 2. Navigate to the project directory:
    ```bash
-   cd flip-clock
+   cd flippin-klock
    ```
 3. Get dependencies:
    ```bash
@@ -139,9 +139,9 @@ Any modifications must be shared under the same GPL v3 license, ensuring the com
 ## ☕ Support Development
 
 **No Ads - Ever!**  
-This flip clock app is completely ad-free and will never contain advertisements. It's designed to provide a clean, distraction-free time display experience.
+This flippin-klock app is completely ad-free and will never contain advertisements. It's designed to provide a clean, distraction-free time display experience.
 
-If you enjoy this flip clock app and want to support its continued development, consider buying me a coffee!
+If you enjoy this flippin-klock app and want to support its continued development, consider buying me a coffee!
 
 <a href='https://ko-fi.com/R5R11TOYR8' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi2.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
 
